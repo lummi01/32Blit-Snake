@@ -22,6 +22,3 @@ cd build
 cmake -D32BLIT_DIR=/path/to/32blit-sdk/ ..
 make
 ```
-
-[Use this template](https://github.com/32blit/32blit-boilerplate/generate) to
-generate your own project.
