@@ -3,7 +3,7 @@
 This is a simple Snake Game for the Pimoroni 32Blit Handheld.
 
 It's based on the original `template` project from the 
-[32Blit Beta](https://github.com/pimoroni/32blit-beta).
+[32Blit](https://github.com/32blit/32blit-sdk).
 
 ## Usage
 
