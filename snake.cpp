@@ -7,16 +7,18 @@ using namespace blit;
 #define SCREEN_HEIGHT 120 / BLOCK
 
 short status = 0;
-// 0 = Start Screen
-// 1 = Spiel
-// 2 = Ende
+// 0 = start screen
+// 1 = game
+// 2 = end
 
-short dS;
+short dT;
 short pX[100], pY[100], pD, pL = 5;
 short pDIR[5] = {-1,0,1,0,-1};
-short aX, aY;
+short aX, aY, aS;
 
-void new_apple() 
+
+
+void new_apple()
 {
     bool j;
     do
@@ -32,7 +34,6 @@ void new_apple()
                 j = true;
                 break;
             }
-
         }
     }
     while (j);
@@ -44,6 +45,18 @@ void new_apple()
 void init() 
 {
     set_screen_mode(ScreenMode::lores);
+
+    channels[0].waveforms   = Waveform::NOISE;
+    channels[0].attack_ms   = 127;
+    channels[0].volume      = 3000;
+
+    channels[1].waveforms   = Waveform::SQUARE; 
+    channels[1].attack_ms   = 127;
+    channels[1].volume      = 5000;
+
+    channels[2].waveforms   = Waveform::NOISE;
+    channels[2].attack_ms   = 127;
+    channels[2].volume      = 7000;
 }
 
 // render(time)
@@ -62,24 +75,8 @@ void render(uint32_t time)
         screen.pen = Pen(255, 255, 255);
         screen.text("PRESS A TO START", minimal_font, Point(SCREEN_WIDTH / 2 * BLOCK, 92), true, TextAlign::center_center);
     }
-    else if (status == 1)
-    {
-        screen.pen = Pen(0, 155, 0);
-        short i;
-        for (i = 1; i < pL; i++)
-        {
-            screen.rectangle(Rect(pX[i] * BLOCK, pY[i] * BLOCK, BLOCK, BLOCK));
-        }
-        screen.pen = Pen(0, 255, 0);
-        screen.rectangle(Rect(pX[0] * BLOCK, pY[0] * BLOCK, BLOCK, BLOCK));
-        screen.pen = Pen(255, 0, 0);        
-        screen.rectangle(Rect(aX * BLOCK, aY * BLOCK, BLOCK, BLOCK));
-        screen.pen = Pen(255, 255, 255);
-    }
     else
     {
-        screen.pen = Pen(255, 0, 0);        
-        screen.rectangle(Rect(aX * BLOCK, aY * BLOCK, BLOCK, BLOCK));            
         screen.pen = Pen(0, 155, 0);
         short i;
         for (i = 1; i < pL; i++)
@@ -91,8 +88,11 @@ void render(uint32_t time)
         screen.pen = Pen(255, 0, 0);        
         screen.rectangle(Rect(aX * BLOCK, aY * BLOCK, BLOCK, BLOCK));
         screen.pen = Pen(255, 255, 255);
-        screen.text("GAME OVER", minimal_font, Point(SCREEN_WIDTH / 2 * BLOCK, SCREEN_HEIGHT / 2 * BLOCK), true, TextAlign::center_center);
-        screen.text("PRESS A", minimal_font, Point(SCREEN_WIDTH / 2 * BLOCK, 92), true, TextAlign::center_center);
+        if (status == 2)
+        {
+            screen.text("GAME OVER", minimal_font, Point(SCREEN_WIDTH / 2 * BLOCK, SCREEN_HEIGHT / 2 * BLOCK), true, TextAlign::center_center);
+            screen.text("PRESS A", minimal_font, Point(SCREEN_WIDTH / 2 * BLOCK, 92), true, TextAlign::center_center);
+        }
     }
     screen.text(std::to_string(pL - 5), minimal_font, Point(SCREEN_WIDTH * BLOCK - BLOCK + 1, BLOCK - 1), true, TextAlign::top_right);
     screen.pen = Pen(0, 0, 0);
@@ -109,24 +109,25 @@ void update(uint32_t time)
         if (buttons.pressed & Button::A)
         {
             status = 1;
-            dS = 8;
             short i;
             for (i = 0; i < 5; i++)
             {
                 pX[i] = SCREEN_WIDTH / 2;
                 pY[i] = SCREEN_HEIGHT + i;
             }
+            dT = 0;
             pL = 5;
             pD = 1;
             new_apple();
+            aS = 0;
         }
     }
     else if (status == 1)
     {
-        dS += 1;
-        if (dS > 8 - (int)floor((pL - 5) * .1))
+        dT--;
+        if (dT < (int)floor(pL * .1))
         {
-            dS = 0;
+            dT = 9;
             short i;
             for (i = pL; i > 0; i--)
             {
@@ -153,17 +154,16 @@ void update(uint32_t time)
                 pY[0] = 0;
             }
 
+ 
             if (pX[0] == aX && pY[0] == aY)
             {
-                channels[1].waveforms   = Waveform::SQUARE;
-                channels[1].attack_ms   = 127;
-                channels[1].volume      = 3000;
-                channels[1].trigger_attack();
                 if (pL < 100)
                 {
                     pL++;
                 }
                 new_apple();
+                aS = 4;
+                channels[1].trigger_attack();
             }
             else
             {
@@ -173,19 +173,24 @@ void update(uint32_t time)
                     if (pX[0] == pX[i] && pY[0] == pY[i])
                     {
                         status = 2;
+                        aS = 15,
+                        channels[2].trigger_attack();
                     }
                 }
             }
             channels[0].trigger_release();
         }
-        else if (dS > 7 - (int)floor((pL - 5) * .1))
+        else if (dT < 2 + (int)floor(pL * .1))
         {
-            channels[0].waveforms   = Waveform::NOISE;
-            channels[0].attack_ms   = 127;
-            channels[0].volume      = 1000;
             channels[0].trigger_attack();
-
-            channels[1].trigger_release();            
+        }
+        if (aS > 0)
+        {
+            aS--;
+        }
+        else
+        {
+            channels[1].trigger_release();
         }
 
         if (buttons & Button::DPAD_UP)
@@ -210,6 +215,14 @@ void update(uint32_t time)
         if (buttons.pressed & Button::A)
         {
             status = 0;
+        }
+        if (aS > 0)
+        {
+            aS--;
+        }
+        else
+        {
+            channels[2].trigger_release();
         }
     }
 }
